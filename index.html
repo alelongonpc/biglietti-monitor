@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biglietti Monitor V2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1a1d23;--mut:#6b7280;--line:#e5e7eb;--ok:#15803d;--warn:#b45309;--warnf:#eab308;--bad:#b91c1c;--acc:#2563eb;--okbg:#dcfce7;--warnbg:#fef3c7;--badbg:#fee2e2;--sell:#16a34a;--near:#0891b2;color-scheme:light}
+:root[data-theme="dark"]{--bg:#0f1217;--card:#181c23;--ink:#e8eaed;--mut:#9aa3af;--line:#2a303a;--ok:#4ade80;--warn:#fbbf24;--warnf:#fbbf24;--bad:#f87171;--acc:#60a5fa;--okbg:#14301f;--warnbg:#3a2a0c;--badbg:#3b1616;--sell:#22c55e;--near:#22d3ee;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.15;margin:0}h2{font-size:16px;margin:28px 0 10px}
+.sub{color:var(--mut);font-size:13px;margin-top:2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+.kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi b{display:block;font-size:24px}.kpi span{color:var(--mut);font-size:12px}
+.alert{border-left:4px solid var(--bad);margin-bottom:8px;display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.alert.warn{border-left-color:var(--warnf)}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.tag.bad{background:var(--badbg);color:var(--bad)}.tag.warn{background:var(--warnbg);color:var(--warn)}.tag.ok{background:var(--okbg);color:var(--ok)}
+.tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--mut);font-weight:600;cursor:pointer;user-select:none}
+tr:last-child td{border-bottom:0}tbody tr{cursor:pointer}tbody tr:hover{background:var(--bg)}
+.bar{height:8px;width:110px;background:var(--line);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
+.bar i{display:block;height:100%;background:color-mix(in srgb,var(--ink) 50%,transparent)}
+select{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.chart{position:relative;height:320px}
+.aggtools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}.aggtools .btn{white-space:nowrap}.aggtools .btn.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.aggnote{margin:8px 0 0}
+tr.open td{background:color-mix(in srgb,var(--acc) 6%,transparent)}
+tr.detail td{padding:10px 12px;cursor:default;box-shadow:none!important}tr.detail .chart{height:260px}.dwrap{position:sticky;left:0}
+.winsep{width:14px}.ev{columns:2;margin:8px 0 0;padding-left:22px;font-size:12px;color:var(--mut)}.ev:empty{display:none}
+.num{text-align:right}
+.err{color:var(--bad)}
+.h2leg{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.legend{font-size:12px;font-weight:400;color:var(--mut)}
+.sw{display:inline-block;width:12px;height:12px;vertical-align:-2px;margin:0 6px 0 14px;border-radius:3px}
+.legend .sw:first-child{margin-left:0}
+.sw.bad,tr.bad td:first-child{--c:var(--bad)}.sw.warn,tr.warn td:first-child{--c:var(--warnf)}
+.sw{background:var(--c)}
+tr.bad td:first-child,tr.warn td:first-child{box-shadow:inset 3px 0 0 var(--c)}
+.filters{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.frow,.frow2{display:flex;gap:8px;align-items:center}
+.frow select{flex:none}#fspace{width:215px}#fper{width:180px}#fstato{width:165px}
+#freset{flex:none}
+.frow2 #fcount{margin-right:auto}.frow2 .btn{flex:none}
+.btn{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.btn:hover:not(:disabled){border-color:var(--acc)}.btn:disabled{opacity:.45;cursor:default}
+.sw.sell,tr.sell td:first-child{--c:var(--sell)}.sw.near,tr.near td:first-child{--c:var(--near)}
+tr.sell td:first-child,tr.near td:first-child{box-shadow:inset 3px 0 0 var(--c)}
+.tag.sell{background:color-mix(in srgb,var(--sell) 18%,transparent);color:var(--sell)}.tag.near{background:color-mix(in srgb,var(--near) 18%,transparent);color:var(--near)}
+.esa{color:var(--sell);font-weight:600}
+.wl{color:var(--acc);text-decoration:none;white-space:nowrap}.wl:hover{text-decoration:underline}
+.age{font-weight:600}.age.ok{color:var(--ok)}.age.warn{color:var(--warn)}.age.bad{color:var(--bad)}
+#ageline{margin-top:4px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+a.btn{text-decoration:none;font-size:13px;padding:3px 10px}
+body.locked main{display:none}body:not(.locked) #gate{display:none}
+#gateForm{visibility:hidden}
+#gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+#gateForm{display:flex;flex-direction:column;gap:10px;width:100%;max-width:320px}
+#gateForm input[type=password]{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+#gateForm label{display:flex;gap:6px;align-items:center}
+.wlogo{height:1.25em;width:auto;vertical-align:middle;margin:0 6px}
+:root:not([data-theme="dark"]) .wlogo{filter:invert(1) hue-rotate(180deg)} /* lettere bianche del logo -> nere, blu e arancio restano */
+.mb{display:none}
+.btn.xl{background:#217346;border-color:#217346;color:#fff;display:inline-flex;align-items:center;gap:6px;font-weight:600} /* verde Excel */
+.btn.xl:hover:not(:disabled){background:#185c37;border-color:#185c37}
+@media screen and (max-width:640px){
+  /* telefono: testo più leggibile (peso medio, nero pieno su bianco / bianco pieno su nero, grigi più scuri/chiari) */
+  :root{--ink:#000;--mut:#4b5563}:root[data-theme="dark"]{--ink:#fff;--mut:#cbd5e1}
+  body{font-weight:500}.legend{font-weight:500}
+  .arow{padding:6px 10px}
+  .dk{display:none}.mb{display:inline}.hm{display:none}
+  .csv{display:none}
+  main{padding:12px 10px 40px}
+  h1{font-size:clamp(22px,6vw,30px)}
+  .kpis{grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .kpi{padding:8px 9px}.kpi b{font-size:19px}.kpi span{font-size:11px;line-height:1.2;display:block}
+  .filters,.frow,.frow2{display:contents}
+  .filters{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center}
+  #fq{order:1}#fspace{order:2}#fper{order:3}#fstato{order:4}#fcount{order:5}#freset{order:6}#fexp{order:7}#fhist{order:8}
+  .frow2 #fcount{margin-right:0}
+  #fexp{margin-left:auto}
+  .filters input{max-width:none;min-width:0;flex:1 1 100%}
+  .filters select,#fspace,#fper,#fstato{flex:1 1 calc(50% - 8px);width:auto;min-width:0;max-width:calc(50% - 4px)}
+  .filters{gap:5px}.filters .btn{font-size:12.5px;padding:6px 8px}#fcount{font-size:12px}
+  .tablewrap{overflow:visible;border-radius:8px}
+  table{min-width:0;width:100%;font-size:12.5px}
+  th,td{padding:7px 4px;white-space:normal}
+  td:first-child .sub{font-size:11px;line-height:1.3}
+  th{font-size:11px}
+  td:not(:first-child){white-space:nowrap}
+  td:first-child{padding-left:8px}
+  .bar{width:7px;height:20px;display:inline-flex;align-items:flex-end;margin-right:5px;border-radius:3px}
+  .bar i{width:100%!important;height:var(--p)}
+}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.btn[aria-pressed=true]{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+/* PROMOZIONE spenta: nasconde urgenze, esaurito, colori e pannello */
+body.promo-off #soglieDet,body.promo-off .kpi[data-st],body.promo-off .legend,body.promo-off #fstato{display:none}
+body.promo-off tr.bad td:first-child,body.promo-off tr.warn td:first-child,body.promo-off tr.near td:first-child,body.promo-off tr.sell td:first-child{box-shadow:none}
+body.promo-off tbody tr:not(.past) .bar i{background:color-mix(in srgb,var(--ink) 50%,transparent)}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+@media print{
+  :root,:root[data-theme]{--bg:#f6f7f9;--card:#fff;--ink:#1a1d23;--mut:#6b7280;--line:#e5e7eb;--ok:#15803d;--warn:#b45309;--warnf:#eab308;--bad:#b91c1c;--acc:#2563eb;--okbg:#dcfce7;--warnbg:#fef3c7;--badbg:#fee2e2;--sell:#16a34a;--near:#0891b2;color-scheme:light}
+  body{background:#fff;color:#000;font-size:12px}
+  main{max-width:none;padding:0}
+  .tools,.filters,#ageline a,#gate,.btn{display:none!important}
+  .card,.kpi,.tablewrap{box-shadow:none;break-inside:avoid}
+  .tablewrap{overflow:visible}table{min-width:0;font-size:11px}th,td{white-space:normal;padding:4px 6px}
+  thead{display:table-header-group}tr{break-inside:avoid}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .chart{height:240px}.ev{columns:1}.wlogo{filter:invert(1) hue-rotate(180deg)}
+  h2{break-after:avoid}
+}
+.past td{opacity:.65}.past .bar i{background:var(--mut)}
+tr.bad .bar i{background:var(--bad)}tr.warn .bar i{background:var(--warnf)}tr.near .bar i{background:var(--near)}tr.sell .bar i{background:var(--sell)}
+.filters input{font:inherit;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);min-width:140px;flex:1 1 220px}
+.kpi.link{cursor:pointer}.kpi.link:hover{border-color:var(--acc)}
+.promo{margin-top:20px;padding:0}
+.promo summary{cursor:pointer;padding:10px 14px;font-weight:600;list-style:none}
+.promo summary::before{content:'▸ ';color:var(--mut)}.promo[open] summary::before{content:'▾ '}
+.promo summary .tag{margin-left:6px}
+.promo h3{font-size:12px;color:var(--mut);margin:10px 14px 4px;text-transform:uppercase;letter-spacing:.04em;scroll-margin-top:12px}
+.arow{display:flex;gap:12px;align-items:center;padding:6px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.arow .t{flex:1 1 220px;min-width:0}.arow .sub{margin:0}
+</style>
+<script>try{var t=localStorage.getItem('aida_theme');if(t==='dark')document.documentElement.dataset.theme='dark'}catch(e){}</script>
+</head>
+<body class="locked">
+<div id="gate"><form id="gateForm" autocomplete="off">
+  <h1>Biglietti Monitor <img class="wlogo" src="img/webtic.png" alt="Webtic"> <span class="tag warn ver">V.2</span></h1>
+  <p class="sub">Area riservata. Inserisci la password.</p>
+  <input id="gatePw" type="password" placeholder="Password" autocomplete="current-password" autofocus>
+  <button class="btn" type="submit">Entra</button>
+  <label class="sub"><input id="gateKeep" type="checkbox" checked> Ricorda su questo dispositivo</label>
+  <div id="gateErr" class="err"></div>
+</form></div>
+<main>
+  <div class="top"><h1>Biglietti Monitor <img class="wlogo" src="img/webtic.png" alt="Webtic"> <span class="tag warn ver">V.2</span></h1>
+    <div class="tools"><button id="themeBtn" class="btn" type="button" title="Cambia tema (il tema chiaro è pensato anche per la stampa)">☀ Tema chiaro</button>
+    <button id="promoBtn" class="btn" type="button" aria-pressed="false" title="Mostra o nasconde colori, segnalazioni e pannello Da promuovere">PROMOZIONE · OFF</button></div></div>
+  <div class="sub" id="upd">Caricamento…</div>
+  <div class="sub" id="ageline"></div>
+  <div class="kpis" id="kpis"></div>
+
+  <h2 class="h2leg">Tutti gli spettacoli in programma
+    <span class="legend"><i class="sw bad"></i>da promuovere <i class="sw warn"></i>da monitorare <i class="sw near"></i>quasi esaurito <i class="sw sell"></i>esaurito</span></h2>
+  <div class="filters">
+    <div class="frow">
+      <input id="fq" type="search" placeholder="Cerca spettacolo…" autocomplete="off">
+      <select id="fspace" aria-label="Spazio"><option value="">Tutti gli spazi</option></select>
+      <select id="fper" aria-label="Periodo">
+      <option value="0">Tutti gli eventi</option><option value="7">Prossimi 7 giorni</option>
+      <option value="15">Prossimi 15 giorni</option><option value="30">Prossimi 30 giorni</option><option value="-1">Solo conclusi</option>
+    </select>
+      <select id="fstato" aria-label="Stato"><option value="">Tutti gli stati</option><option value="bad">Da promuovere</option><option value="warn">Da monitorare</option><option value="near">Quasi esauriti</option><option value="sell">Esauriti</option></select>
+      <button id="freset" class="btn" type="button" title="Rimuovi tutti i filtri">✕ Filtri</button>
+    </div>
+    <div class="frow2">
+      <span class="sub" id="fcount"></span>
+      <button id="fexp" class="btn xl" type="button" title="Scarica la tabella con i filtri attivi (CSV per Excel)"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg> Tabella <span class="csv">(CSV)</span></button>
+      <button id="fhist" class="btn xl" type="button" title="Scarica tutte le misure nel tempo (CSV per Excel)"><svg class="ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M4 20h16"/></svg> Storico <span class="csv">(CSV)</span></button>
+    </div>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr id="thead"></tr></thead><tbody id="rows"></tbody>
+  </table></div>
+
+  <h2>Andamento vendite <span class="legend" id="aggInfo"></span></h2>
+  <div class="card">
+    <div class="aggtools"><button class="btn on" data-m="n" type="button">Venduti</button><button class="btn" data-m="p" type="button">Riempimento %</button><span id="aggWin" style="display:contents"></span></div>
+    <div class="chart"><canvas id="chart"></canvas></div>
+    <ol class="ev" id="aggEv"></ol>
+    <p class="sub aggnote" id="aggNote"></p>
+  </div>
+  <details class="card promo" id="soglieDet">
+    <summary>Soglie Promozione</summary>
+    <div id="soglieBox"></div>
+  </details>
+  <p class="sub">Venduti = posti non più disponibili su Webtic (occupati + non disponibili). Riempimento = venduti ÷ posti totali.</p>
+</main>
+<script>
+const DAY=864e5;
+const APP_VERSION='V.2'; // unico punto da cambiare per le versioni future (V.3, V.4...)
+document.querySelectorAll('.ver').forEach(e=>e.textContent=APP_VERSION);document.title='Biglietti Monitor '+APP_VERSION;
+const WD=['DOM','LUN','MAR','MER','GIO','VEN','SAB'];
+const WDL=['dom','lun','mar','mer','gio','ven','sab']; // etichette del grafico: "sab 24 ott" su una riga, l'ora sotto
+const fmtD=s=>{const d=new Date(s);return `${WD[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(2)}`};
+// una "sala" = local_id + screen_id di Webtic (a Cassola/Thiene ci sono due teatri nello stesso spazio Webtic)
+const MES=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+const fmtM=s=>{const d=new Date(s);return `${d.getDate()} ${MES[d.getMonth()]}`};
+const SHORT_M={5619:'DIM',5140:'STIM','5389-73':'CASS','5389-153':'THIE'}; // sigle per lo schermo del telefono
+const SHORT={5619:'TEATRO DIM',5140:'TEATRO STIMATE','5389-73':'A. VIVALDI - CASSOLA','5389-153':'A. FONATO - THIENE'};
+const skey=r=>r.screen_id&&SHORT[r.local_id+'-'+r.screen_id]?r.local_id+'-'+r.screen_id:String(r.local_id);
+const spaceName=r=>SHORT[skey(r)]||SHORT[r.local_id]||r.space;
+const DEF_ESA={esaurito:.98,quasi:.85};
+const esaFor=p=>soglie.spazi?.[p.skey]?.esaurimento||soglie.spazi?.[p.local_id]?.esaurimento||soglie.esaurimento||DEF_ESA;
+let promoOn=false;try{promoOn=localStorage.getItem('aida_promo')==='1'}catch(e){}
+const sectorParts=(p,all)=>{
+  if(p.sectors.length<2&&!all)return[];
+  const th=esaFor(p).esaurito,ps=p.sectors.map(x=>({n:x.name.replace(/^(Teatro|Auditorium)\s+\S+\s+/i,'')||'—',x,esa:x.sell>0&&x.sold/x.sell>=th}));
+  const mixed=ps.some(q=>q.esa)&&ps.some(q=>!q.esa);
+  return ps.map(q=>({esa:q.esa,txt:`${q.n} ${q.x.sold}/${q.x.sell}`+(promoOn?(q.esa?' esaurita':mixed?` (${q.x.sell-q.x.sold} liberi)`:''):'')}))};
+const secTxt=(p,all)=>sectorParts(p,all).map(q=>q.txt).join(' · ');
+const secHtml=p=>secTxt(p); // dato informativo, senza colori di stato
+const statusOf=p=>p.urg==2?'bad':p.urg==1?'warn':p.sell||'';
+const STATUS_LBL={bad:'da promuovere',warn:'da monitorare',near:'quasi esaurito',sell:'esaurito','':''};
+const num=v=>v.toLocaleString('it-IT');
+// link alla pagina Webtic della replica (poi: Acquisto con carta di credito -> mappa posti)
+const wUrl=(p,pid)=>`https://www.webtic.it/app/shop?action=loadPerformance&localId=${p.local_id}&eventId=${p.event_id}&performanceId=${pid}`;
+const wLink=(p,pid,txt='Apri su Webtic ↗')=>wUrl(p,pid)?`<a class="wl" href="${wUrl(p,pid)}" target="_blank" rel="noopener" title="Apre la pagina Webtic dello spettacolo (se sei collegato: Acquisto con carta di credito → mappa)">${txt}</a>`:'';
+function parseCSV(t){const [h,...ls]=t.trim().split(/\r?\n/);const k=h.split(',');
+  return ls.map(l=>{const r=[];let c='',q=false;for(const ch of l){if(ch=='"')q=!q;else if(ch==','&&!q){r.push(c);c=''}else c+=ch}r.push(c);
+    const o={};k.forEach((n,i)=>o[n]=r[i]);['total','sold','blocked','other','available'].forEach(n=>o[n]=+o[n]);
+    // venduti = tutti i posti non più disponibili (occupati + non disponibili/bloccati + altri stati)
+    o.sold+=o.blocked+o.other;o.blocked=0;o.other=0;return o})}
+const day=ts=>ts.slice(0,10);
+
+let allRows=[],shownRows=[];
+function download(name,header,lines){
+  const csv='\ufeff'+[header,...lines].map(r=>r.map(v=>{v=String(v??'');return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(';')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+const dec=v=>String(v).replace('.',','),stamp=()=>new Date().toISOString().slice(0,10);
+function exportTable(){
+  const keep=(r)=>promoOn?r:r.filter((_,i)=>i!==10);
+  download(`vendite_tabella_${stamp()}.csv`,keep(['Spettacolo','Spazio','Data spettacolo','Stato','Giorni mancanti','Posti totali','Venduti','Disponibili','Riempimento %','Venduti ultimi 7 gg','Segnalazione','Settori']),
+    shownRows.map(p=>keep([p.title,p.space,p.start.replace('T',' ').slice(0,16),p.past?'concluso':'in programma',p.past?'':p.days,p.total,p.sold,p.available,
+      dec(Math.round(p.fill*1000)/10),p.past||p.d7==null?'':p.d7,STATUS_LBL[statusOf(p)],secTxt(p,true)])))}
+function exportHistory(){
+  download(`vendite_storico_${stamp()}.csv`,['Data/ora controllo (UTC)','Spazio','Spettacolo','Data spettacolo','Settore','Posti totali','Venduti','Disponibili','Riempimento %'],
+    allRows.map(r=>[r.ts,spaceName(r),r.title,r.start.replace('T',' ').slice(0,16),r.screen||'',r.total,r.sold,r.available,
+      dec(Math.round(r.sold/Math.max(r.total,1)*1000)/10)]))}
+let perfs=[],sortKey='days',sortDir=1,chart,dchart,openId=null,aggMode='n',chartWin=60;
+
+let soglie={default:[{giorni:14,sotto:.5,livello:'urgente'},{giorni:30,sotto:.25,livello:'urgente'},{giorni:60,sotto:.1,livello:'monitorare'}],spazi:{}};
+// fascia oraria: 'sera' = inizio dalle 18:00, altrimenti 'pomeriggio'; una regola con "fascia" vale solo per quella fascia
+const fasciaOf=p=>new Date(p.start).getHours()>=18?'sera':'pomeriggio';
+const rulesFor=p=>soglie.spazi?.[p.skey]?.regole||soglie.spazi?.[p.local_id]?.regole||soglie.default;
+function urgency(p){
+  if(p.past||!p.live)return 0;
+  let u=0;
+  for(const r of rulesFor(p))if((!r.fascia||r.fascia==fasciaOf(p))&&p.days<=r.giorni&&p.fill<r.sotto)u=Math.max(u,r.livello=='urgente'?2:1);
+  return u}
+function renderSoglie(){
+  const fmt=r=>`${r.livello=='urgente'?'<span class="tag bad">da promuovere</span>':'<span class="tag warn">da monitorare</span>'} ≤ ${r.giorni} giorni e riempimento &lt; ${Math.round(r.sotto*100)}%${r.fascia?` <span style="color:var(--mut);font-size:12px">(${r.fascia=='sera'?'spettacoli serali, dalle 18':'spettacoli pomeridiani'})</span>`:''}`;
+  const spazi=Object.entries(soglie.spazi||{});
+  const edit=soglie.repo?`<a href="https://github.com/${soglie.repo}/edit/main/docs/soglie.json" target="_blank" rel="noopener">Modifica soglie (solo admin, richiede accesso GitHub)</a>`
+    :'Per modificare: un admin con accesso al repo GitHub cambia <code>docs/soglie.json</code>.';
+  const esa=e=>{e=e||DEF_ESA;return `<div class="arow"><span class="tag sell">esaurito</span> riempimento ≥ ${Math.round(e.esaurito*100)}% <span class="tag near">quasi esaurito</span> ≥ ${Math.round(e.quasi*100)}%</div>`};
+  soglieBox.innerHTML=(spazi.length?spazi.map(([id,s])=>`<h3>${s.nome||id}</h3>${s.regole.map(r=>`<div class="arow">${fmt(r)}</div>`).join('')}${esa(s.esaurimento||soglie.esaurimento)}`).join('')
+    :soglie.default.map(r=>`<div class="arow">${fmt(r)}</div>`).join('')+esa(soglie.esaurimento))+`<p class="sub" style="padding:8px 14px">${edit}</p>`}
+
+function build(rows){
+  // una "replica" = spettacolo + data/ora; i settori (platea, galleria…) sono sommati
+  const g={};rows.forEach(r=>(g[r.event_id+'|'+r.start]??=[]).push(r));
+  const today=Date.now(),lastTs=rows.reduce((m,r)=>r.ts>m?r.ts:m,'');
+  perfs=Object.entries(g).map(([key,rs])=>{
+    const byTs={};rs.forEach(r=>{const a=byTs[r.ts]??={...r,total:0,sold:0,blocked:0,other:0,available:0,n:0};
+      ['total','sold','blocked','other','available'].forEach(k=>a[k]+=r[k]);a.n++});
+    const h=Object.values(byTs).sort((a,b)=>a.ts<b.ts?-1:1);const l=h[h.length-1];
+    // i settori interni a un solo schermo Webtic (es. Platea/Galleria del Vivaldi) restano nei dati grezzi: in pagina conta solo il totale
+    const sg={};rs.filter(r=>r.ts===l.ts).forEach(r=>{const k=r.screen_id||r.screen,g=sg[k]??={name:r.screen||'',sold:0,sell:0,n:0};
+      g.sold+=r.sold;g.sell+=Math.max(r.total-r.blocked,0);g.n++;if(g.n>1)g.name=g.name.replace(/\s+(Platea|Galleria)$/i,'')});
+    const sectors=Object.values(sg);
+    const sellable=Math.max(l.total-l.blocked,1);
+    const ref=[...h].reverse().find(x=>new Date(l.ts)-new Date(x.ts)>=6.5*DAY)||h[0];
+    const span=(new Date(l.ts)-new Date(ref.ts))/DAY;
+    const pids=[...new Set(rs.map(r=>String(r.performance_id)))];
+    const p={...l,performance_id:key,pids,h,sectors,sellable,fill:l.sold/sellable,days:Math.ceil((new Date(l.start)-today)/DAY),
+      d7:span>=1?Math.round((l.sold-ref.sold)/span*7):null}; // d7: serve almeno 1 giorno di storico
+    p.skey=skey(p);p.space=spaceName(p);p.spaceM=SHORT_M[p.skey]||p.space.slice(0,4);
+    p.past=new Date(p.start)<Date.now();p.live=l.ts===lastTs; // live = ancora presente su Webtic all'ultimo snapshot
+    p.urg=urgency(p);const e=esaFor(p);p.sell=p.past?'':p.fill>=e.esaurito?'sell':p.fill>=e.quasi?'near':'';return p});
+}
+
+let lastTs='';
+function renderAge(){
+  const ore=(Date.now()-new Date(lastTs))/36e5,cls=ore>14?'bad':ore>8?'warn':'ok';
+  const txt=ore<1?`${Math.max(Math.round(ore*60),0)} minuti fa`:ore<48?`${Math.round(ore)} ${Math.round(ore)==1?'ora':'ore'} fa`:`${Math.round(ore/24)} giorni fa`;
+  ageline.innerHTML=`<span class="age ${cls}" title="I dati si aggiornano 4 volte al giorno (circa 07:00, 13:00, 20:00, 00:00)">● Dati di ${txt}</span>`
+    // "Aggiorna ora" nascosto (decisione dell'utente, in attesa di capire come usarlo): era un link a github.com/${soglie.repo}/actions/workflows/scrape.yml
+}
+function applyTheme(light,save){
+  if(light)delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme='dark';
+  themeBtn.textContent=light?'☾ Tema scuro':'☀ Tema chiaro';
+  if(save){try{localStorage.setItem('aida_theme',light?'light':'dark')}catch(e){}}
+  if(typeof chart!=='undefined'&&perfs.length)draw()}
+let themeBeforePrint=null;
+window.addEventListener('resize',()=>{clearTimeout(window._rz);window._rz=setTimeout(()=>{if(openId!=null)syncDetail()},150)});
+window.addEventListener('beforeprint',()=>{themeBeforePrint=document.documentElement.dataset.theme!=='dark';if(!themeBeforePrint)applyTheme(true,false)});
+window.addEventListener('afterprint',()=>{if(themeBeforePrint===false)applyTheme(false,false);themeBeforePrint=null});
+function applyPromo(){
+  document.body.classList.toggle('promo-off',!promoOn);promoBtn.setAttribute('aria-pressed',promoOn);promoBtn.textContent='PROMOZIONE · '+(promoOn?'ON':'OFF');
+  if(!promoOn)fstato.value=''}
+// filtri, ordinamento e spettacolo del grafico restano dopo un refresh (solo in questo browser)
+const FKEY='aida_filtri',SORTABLE=['title','space','start','days','sold','available','fill','d7'];
+function saveFilters(){try{localStorage.setItem(FKEY,JSON.stringify({q:fq.value,space:fspace.value,per:fper.value,stato:fstato.value,sortKey,sortDir,agg:aggMode,win:chartWin}))}catch(e){}}
+function restoreFilters(){let f;try{f=JSON.parse(localStorage.getItem(FKEY)||'null')}catch(e){}
+  if(!f||typeof f!=='object')return;
+  const setSel=(el,v)=>{if(typeof v==='string'&&[...el.options].some(o=>o.value===v))el.value=v};
+  if(typeof f.q==='string')fq.value=f.q;
+  setSel(fspace,f.space);setSel(fper,f.per);setSel(fstato,f.stato);if(f.agg==='n'||f.agg==='p')aggMode=f.agg;if([0,14,30,60].includes(f.win))chartWin=f.win;
+  if(SORTABLE.includes(f.sortKey)&&(f.sortDir===1||f.sortDir===-1)){sortKey=f.sortKey;sortDir=f.sortDir}}
+function render(){
+  saveFilters();
+  const up=perfs.filter(p=>!p.past);
+  const sold=up.reduce((s,p)=>s+p.sold,0),cap=up.reduce((s,p)=>s+p.sellable,0);
+  kpis.innerHTML=[[up.length,'spettacoli in programma'],[num(sold),'biglietti venduti'],
+    [cap?Math.round(sold/cap*100)+'%':'–','riempimento medio'],[up.filter(p=>p.urg==2).length,'da promuovere',null,'bad'],
+    [up.filter(p=>p.urg==1).length,'da monitorare',null,'warn'],[up.filter(p=>p.sell=='near').length,'quasi esauriti',null,'near'],[up.filter(p=>p.sell=='sell').length,'esauriti',null,'sell']]
+    .map(([b,s,go,st])=>`<div class="kpi${st?' link':''}"${st?` data-st="${st}" title="Mostra in tabella"`:''}><b>${b}</b><span>${s}</span></div>`).join('');
+  kpis.querySelectorAll('[data-st]').forEach(k=>k.onclick=()=>{fstato.value=k.dataset.st;fper.value='0';render();document.querySelector('.h2leg').scrollIntoView({behavior:'smooth'})});
+  const cols=[['title','Spettacolo'],['space','Spazio'],['start','Data'],['days','Giorni',,1],['sold','Venduti','Vend.'],['available','Disponibili','Disp.'],['fill','Riempimento','%'],['d7','Ultimi 7 gg',,1]];
+  thead.innerHTML=cols.map(([k,n,s,hm])=>`<th data-k="${k}" class="${k=='sold'||k=='available'||k=='days'||k=='d7'?'num':''}${hm?' hm':''}"><span class="dk">${n}</span><span class="mb">${s||n}</span>${sortKey==k?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
+  thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sortDir=sortKey==k?-sortDir:1;sortKey=k;render()});
+  const q=fq.value.trim().toLowerCase(),per=+fper.value;
+  const shown=perfs.filter(p=>(!q||(p.title+' '+p.space).toLowerCase().includes(q))&&(!fspace.value||p.space==fspace.value)&&(per==0||(per==-1?p.past:!p.past&&p.days<=per))&&(!fstato.value||statusOf(p)==fstato.value));
+  freset.disabled=!(q||fspace.value||per||fstato.value);
+  fcount.textContent=shown.length==perfs.length?`${perfs.length} spettacoli`:`${shown.length} di ${perfs.length} spettacoli`;
+  const key=p=>sortKey=='days'?(p.past?1e6-p.days:p.days):(p[sortKey]??-1e9); // ordine predefinito: prossimi, poi conclusi (più recenti prima)
+  const rowsSorted=shown.sort((a,b)=>{const x=key(a),y=key(b);return(x>y?1:x<y?-1:0)*sortDir});
+  shownRows=rowsSorted;fexp.disabled=!rowsSorted.length;
+  rows.innerHTML=rowsSorted.length?rowsSorted.map(p=>`<tr class="${statusOf(p)}${p.past?' past':''}" data-id="${p.performance_id}"><td>${p.title} ${wLink(p,p.pids[0],'↗')}<div class="sub">${secHtml(p)}</div></td>
+    <td><span class="dk">${p.space}</span><span class="mb">${p.spaceM}</span></td><td><span class="dk">${fmtD(p.start)}</span><span class="mb">${fmtM(p.start)}</span></td><td class="num hm">${p.past?'concluso':p.days}</td><td class="num"><span class="dk">${p.sold}/${p.sellable}</span><span class="mb">${p.sold}</span></td><td class="num">${p.available}</td>
+    <td class="fillc"><span class="bar"><i style="width:${Math.round(p.fill*100)}%;--p:${Math.round(p.fill*100)}%"></i></span>${Math.round(p.fill*100)}%</td>
+    <td class="num hm">${p.past||p.d7==null?'–':(p.d7>0?'+':'')+p.d7}</td></tr>`).join('')
+    :'<tr><td colspan="8" class="sub">Nessuno spettacolo con questi filtri.</td></tr>';
+  rows.querySelectorAll('.wl').forEach(a=>a.onclick=e=>e.stopPropagation());
+  rows.querySelectorAll('tr[data-id]').forEach(tr=>tr.onclick=()=>{openId=openId===tr.dataset.id?null:tr.dataset.id;syncDetail()});
+  syncDetail();drawAgg();
+}
+
+// grafico a linee: pts = [{ts,sold,cap}]; pct = riempimento % invece dei numeri
+// periodo mostrato nei grafici: ultimi N giorni dei dati (0 = tutta la storia)
+const WINS=[[60,'Ultimi 60 gg'],[30,'30 gg'],[14,'14 gg'],[0,'Tutto']];
+const winHtml=()=>'<span class="winsep"></span>'+WINS.map(([n,t])=>`<button class="btn${chartWin===n?' on':''}" data-w="${n}" type="button">${t}</button>`).join('');
+const winPts=pts=>{if(!chartWin||pts.length<2)return pts;const from=+new Date(pts[pts.length-1].ts)-chartWin*864e5,o=pts.filter(r=>+new Date(r.ts)>=from);return o.length>1?o:pts};
+// serate nello stesso spazio dentro il periodo: nomi sul grafico se sono poche, altrimenti numeri con elenco sotto
+function evPrep(pts,events){const t0=+new Date(pts[0].ts),t1=+new Date(pts[pts.length-1].ts),evs=events.filter(e=>e.t>=t0&&e.t<=t1).sort((a,b)=>a.t-b.t);return{evs,evmode:evs.length>4?'numbers':'names'}}
+const evList=(evs,mode)=>mode!=='numbers'?'':evs.map((e,i)=>{const d=new Date(e.t);return`<li value="${i+1}">${e.label} — ${WDL[d.getDay()]} ${d.getDate()} ${MES[d.getMonth()]}, ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}</li>`}).join('');
+function lineChart(canvas,pts,{title,pct,events=[],evmode='names'}={}){
+  const css=getComputedStyle(document.documentElement),acc=css.getPropertyValue('--acc'),mut=css.getPropertyValue('--mut');
+  // asse x: una sola etichetta per giorno (sul primo punto del giorno), mai ripetuta; se i giorni non entrano si ruotano, poi se ne salta qualcuno
+  const dk=pts.map(r=>{const d=new Date(r.ts);return d.getFullYear()*10000+d.getMonth()*100+d.getDate()}),first=dk.map((k,i)=>i===0||k!==dk[i-1]);
+  const ndays=Math.max(first.filter(Boolean).length,1),perDay=((canvas.parentElement?.clientWidth||canvas.clientWidth||600)-50)/ndays;
+  const longLab=perDay>=66,rot=perDay>=44?0:90,step=perDay>=14?1:Math.ceil(14/perDay);
+  let nd=-1;const tickTxt=pts.map((r,i)=>{if(!first[i])return'';nd++;if(nd%step)return'';const d=new Date(r.ts);return longLab?`${WDL[d.getDay()]} ${d.getDate()} ${MES[d.getMonth()]}`:`${d.getDate()} ${MES[d.getMonth()]}`});
+  const sold=pts.map(r=>pct?Math.round(r.sold/Math.max(r.cap,1)*1000)/10:r.sold),sfx=pct?'%':'';
+  const ds=[{label:pct?'Riempimento %':'Venduti',data:sold,borderColor:acc,backgroundColor:acc+'33',fill:true,tension:.2,pointRadius:3}];
+  if(!pct)ds.push({label:'Capienza',data:pts.map(r=>r.capLine??r.cap),borderColor:mut,borderDash:[6,4],pointRadius:0});
+  return new Chart(canvas,{type:'line',data:{labels:pts.map(r=>{const d=new Date(r.ts);return[`${WDL[d.getDay()]} ${d.getDate()} ${MES[d.getMonth()]}`,`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`]}),datasets:ds},
+    plugins:[{id:'eventi',afterDatasetsDraw(c){ // linee tratteggiate: altri eventi nello stesso spazio, posizionati nel tempo tra due scansioni
+      const m=c.getDatasetMeta(0),T=pts.map(r=>+new Date(r.ts)),ctx=c.ctx,a=c.chartArea;if(m.data.length<2)return;
+      ctx.save();ctx.strokeStyle=mut;ctx.fillStyle=mut;ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.font='11px system-ui,sans-serif';ctx.textBaseline='top';
+      let n=0;events.forEach((ev,k)=>{if(ev.t<T[0]||ev.t>T[T.length-1])return;
+        let i=0;while(i<T.length-2&&ev.t>T[i+1])i++;
+        const f=T[i+1]>T[i]?(ev.t-T[i])/(T[i+1]-T[i]):0,x=m.data[i].x+(m.data[i+1].x-m.data[i].x)*f;
+        ctx.beginPath();ctx.moveTo(x,a.top);ctx.lineTo(x,a.bottom);ctx.stroke();
+        if(evmode==='numbers'){ctx.setLineDash([]);ctx.beginPath();ctx.arc(x,a.top+7,7,0,7);ctx.fill();ctx.fillStyle=css.getPropertyValue('--card');ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='600 9px system-ui,sans-serif';ctx.fillText(String(k+1),x,a.top+7.5);ctx.fillStyle=mut;ctx.textBaseline='top';ctx.font='11px system-ui,sans-serif'}
+        else{const txt=ev.label.length>24?ev.label.slice(0,23)+'…':ev.label,w=ctx.measureText(txt).width,left=x+4+w>a.right;
+          ctx.textAlign=left?'right':'left';ctx.fillText(txt,left?x-4:x+4,a.top+2+(n++%3)*13)}});
+      ctx.restore()}},{id:'valori',afterDatasetsDraw(c){ // valore sopra la linea blu a ogni variazione
+      const d0=c.data.datasets[0],m=c.getDatasetMeta(0),ctx=c.ctx;let lastX=-1e9;
+      ctx.save();ctx.font='600 11px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillStyle=acc;
+      d0.data.forEach((v,i)=>{if(i>0&&v===d0.data[i-1])return;const pt=m.data[i];if(!pt||pt.x-lastX<22)return;ctx.fillText(v+sfx,pt.x,pt.y-7);lastX=pt.x});
+      const cd=c.data.datasets[1];if(cd){const cm=c.getDatasetMeta(1),pt=cm.data[cm.data.length-1]; // valore della capienza sulla linea tratteggiata (a destra)
+        if(pt){ctx.fillStyle=mut;ctx.textAlign='right';ctx.fillText(String(cd.data[cd.data.length-1]),pt.x,pt.y-5)}}
+      ctx.restore()}}],
+    options:{layout:{padding:{top:18,right:8}},animation:false,maintainAspectRatio:false,scales:{y:{beginAtZero:true,...(pct?{max:100}:{}),ticks:{color:mut}},x:{ticks:{color:mut,autoSkip:false,minRotation:rot,maxRotation:rot,callback:(v,i)=>tickTxt[i]},grid:{color:c=>first[c.index]?'rgba(128,128,128,.22)':'transparent'}}},
+      plugins:{legend:{labels:{color:css.getPropertyValue('--ink')}},title:{display:!!title,text:title,color:css.getPropertyValue('--ink')}}}})}
+// altri eventi già avvenuti nello stesso spazio (stessa sala), per vedere se una serata muove le vendite
+function eventsOf(pred,exceptId){const now=Date.now();return perfs.filter(q=>pred(q)&&q.performance_id!==exceptId&&+new Date(q.start)<=now).map(q=>({t:+new Date(q.start),label:q.title}))}
+// pannello sotto la riga cliccata: andamento del singolo spettacolo
+function syncDetail(){
+  rows.querySelectorAll('tr.detail').forEach(r=>r.remove());rows.querySelectorAll('tr.open').forEach(r=>r.classList.remove('open'));
+  dchart?.destroy();dchart=null;if(openId==null)return;
+  const tr=[...rows.querySelectorAll('tr[data-id]')].find(t=>t.dataset.id===openId),p=perfs.find(x=>x.performance_id===openId);
+  if(!tr||!p){openId=null;return}
+  tr.classList.add('open');const d=document.createElement('tr');d.className='detail';
+  d.innerHTML=`<td colspan="8"><div class="dwrap"><div class="aggtools">${winHtml()}</div><div class="chart"><canvas></canvas></div><ol class="ev"></ol></div></td>`;tr.after(d);
+  // la tabella può essere più larga dell'area visibile (scorre in orizzontale): il grafico prende la larghezza visibile e resta ancorato a sinistra
+  d.querySelector('.dwrap').style.width=Math.max(rows.closest('.tablewrap').clientWidth-24,200)+'px';
+  const pts=winPts(p.h.map(r=>({ts:r.ts,sold:r.sold,cap:r.total-r.blocked}))),{evs,evmode}=evPrep(pts,eventsOf(q=>q.skey===p.skey,p.performance_id));
+  d.querySelector('.ev').innerHTML=evList(evs,evmode);
+  dchart=lineChart(d.querySelector('canvas'),pts,{title:`${p.title} — ${fmtD(p.start)}`,events:evs,evmode})}
+// andamento complessivo degli spettacoli che passano i filtri (un concluso mantiene l'ultimo valore; uno spettacolo non ancora nei dati ha il suo primo valore osservato; capienza costante)
+function drawAgg(){
+  chart?.destroy();chart=null;const list=shownRows||[];
+  document.querySelectorAll('.aggtools .btn[data-m]').forEach(b=>b.classList.toggle('on',b.dataset.m===aggMode));aggWin.innerHTML=winHtml();
+  aggInfo.textContent=list.length?`${list.length} ${list.length==1?'spettacolo':'spettacoli'} con i filtri attivi`:'';
+  aggNote.textContent=list.length?'Capienza = posti di tutti gli spettacoli filtrati, costante nel tempo. Per uno spettacolo comparso nei dati più tardi, prima della prima rilevazione si assume lo stesso valore della prima volta in cui lo abbiamo visto.':'Nessuno spettacolo con questi filtri.';
+  if(!list.length)return;
+  const ts=[...new Set(list.flatMap(p=>p.h.map(r=>r.ts)))].sort(),idx=list.map(()=>-1),pts=[];
+  const capLine=list.reduce((a,p)=>{const r=p.h[p.h.length-1];return a+r.total-r.blocked},0); // tetto fisso: posti di tutti gli spettacoli filtrati
+  ts.forEach(t=>{let sold=0,cap=0;list.forEach((p,i)=>{while(idx[i]+1<p.h.length&&p.h[idx[i]+1].ts<=t)idx[i]++;const r=p.h[Math.max(idx[i],0)];sold+=r.sold;cap+=r.total-r.blocked});pts.push({ts:t,sold,cap,capLine})}); // prima della prima rilevazione di uno spettacolo si assume il suo primo valore: capienza costante, niente salti all'ingresso
+  const wp=winPts(pts),{evs,evmode}=evPrep(wp,fspace.value?eventsOf(q=>q.space===fspace.value):[]);
+  if(evs.length)aggNote.textContent+=' Le linee tratteggiate sono eventi già avvenuti in questo spazio.';
+  aggEv.innerHTML=evList(evs,evmode);
+  chart=lineChart(chartEl,wp,{pct:aggMode==='p',events:evs,evmode})}
+function draw(){drawAgg();syncDetail()}
+const chartEl=document.getElementById('chart'),aggInfo=document.getElementById('aggInfo'),aggNote=document.getElementById('aggNote'),aggEv=document.getElementById('aggEv'),aggWin=document.getElementById('aggWin');
+const ageline=document.getElementById('ageline');
+const themeInit=()=>{themeBtn.textContent=document.documentElement.dataset.theme==='dark'?'☀ Tema chiaro':'☾ Tema scuro'};
+const [kpis,thead,rows,upd,soglieBox,fq,fspace,fper,fcount,freset,fexp,fhist,fstato,promoBtn,themeBtn]=['kpis','thead','rows','upd','soglieBox','fq','fspace','fper','fcount','freset','fexp','fhist','fstato','promoBtn','themeBtn'].map(id=>document.getElementById(id));
+
+// Dati cifrati: in produzione la pagina contiene solo data.enc.json (AES-GCM, chiave derivata dalla password con PBKDF2).
+// In locale, senza quel file, legge i file in chiaro (docs/data/snapshots.csv e docs/soglie.json).
+const b64=b=>{let s='';new Uint8Array(b).forEach(x=>s+=String.fromCharCode(x));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function gunzip(buf){return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}
+async function keyFromPassword(pw,enc){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',iterations:enc.iter,salt:unb64(enc.salt)},k,{name:'AES-GCM',length:256},true,['decrypt'])}
+async function decryptData(key,enc){const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(enc.iv)},key,unb64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(await gunzip(pt)))}
+async function plainData(){
+  const soglieJ=await fetch('soglie.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
+  const r=await fetch('data/snapshots.csv',{cache:'no-store'});if(!r.ok)throw new Error('dati non disponibili');
+  return{csv:await r.text(),soglie:soglieJ}}
+let started=false;
+function unlock(D){if(started)return;started=true;document.body.classList.remove('locked');start(D)}
+function start(D){
+Promise.resolve(D).then(D=>{soglie=D.soglie||soglie;renderSoglie();const t=D.csv;
+  const all=parseCSV(t),real=all;build(all);allRows=all;
+  const last=real.reduce((m,r)=>r.ts>m?r.ts:m,'');
+  lastTs=last;renderAge();setInterval(renderAge,60000);
+  upd.textContent='Ultimo aggiornamento: '+new Date(last).toLocaleString('it-IT')+' · '+new Set(real.map(r=>day(r.ts))).size+' giorni di storico';
+  const up=[...perfs].sort((a,b)=>a.start<b.start?-1:1);
+  [...new Set(up.map(p=>p.space))].sort().forEach(s=>fspace.add(new Option(s,s)));
+  [fq,fspace,fper,fstato].forEach(el=>el.addEventListener(el===fq?'input':'change',render));
+  restoreFilters();
+  themeInit();
+  themeBtn.onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark',true);
+  applyPromo();promoBtn.onclick=()=>{promoOn=!promoOn;try{localStorage.setItem('aida_promo',promoOn?'1':'0')}catch(e){}applyPromo();render()};
+  fexp.onclick=exportTable;fhist.onclick=exportHistory;
+  freset.onclick=()=>{fq.value='';fspace.value='';fper.value='0';fstato.value='';render()};
+  document.querySelectorAll('.aggtools .btn[data-m]').forEach(b=>b.onclick=()=>{aggMode=b.dataset.m;saveFilters();drawAgg()});
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-w]');if(!b)return;chartWin=+b.dataset.w;saveFilters();draw()});
+  render();
+}).catch(e=>upd.innerHTML='<span class="err">Errore dati: '+e.message+'</span>');
+}
+(async()=>{
+  const form=document.getElementById('gateForm'),err=document.getElementById('gateErr');
+  let enc=null;try{const r=await fetch('data.enc.json',{cache:'no-store'});if(r.ok)enc=await r.json()}catch(e){}
+  if(!enc){try{unlock(await plainData())}catch(e){form.style.visibility='visible';form.querySelector('input[type=password]').style.display='none';err.textContent='Dati non disponibili'}return}
+  try{const saved=localStorage.getItem('aida_key');
+    if(saved){unlock(await decryptData(await crypto.subtle.importKey('raw',unb64(saved),'AES-GCM',true,['decrypt']),enc));return}}
+  catch(e){try{localStorage.removeItem('aida_key')}catch(x){}}
+  form.style.visibility='visible';document.getElementById('gatePw').focus();
+  form.addEventListener('submit',async e=>{e.preventDefault();err.textContent='Verifica…';
+    try{const key=await keyFromPassword(document.getElementById('gatePw').value,enc),D=await decryptData(key,enc);
+      try{if(document.getElementById('gateKeep').checked)localStorage.setItem('aida_key',b64(await crypto.subtle.exportKey('raw',key)))}catch(x){}
+      err.textContent='';unlock(D)}
+    catch(x){err.textContent=x&&x.name==='OperationError'?'Password errata':'Errore: '+(x&&x.message||x);document.getElementById('gatePw').select()}});
+})();
+</script>
+</body>
+</html>
